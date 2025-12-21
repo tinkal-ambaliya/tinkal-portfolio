@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#E4F0FF"/>
+
+  <!-- Database Icon -->
+  <ellipse cx="400" cy="200" rx="120" ry="40" fill="#B5D8FF" opacity="0.8"/>
+  <rect x="280" y="200" width="240" height="80" fill="#B5D8FF" opacity="0.8"/>
+  <ellipse cx="400" cy="280" rx="120" ry="40" fill="#B5D8FF" opacity="0.8"/>
+
+  <ellipse cx="400" cy="180" rx="120" ry="40" fill="#FFFFFF" opacity="0.9"/>
+  <rect x="280" y="180" width="240" height="60" fill="#FFFFFF" opacity="0.9"/>
+  <ellipse cx="400" cy="240" rx="120" ry="40" fill="#FFFFFF" opacity="0.9"/>
+
+  <!-- SQL Symbol -->
+  <text x="400" y="230" font-family="Courier New, monospace" font-size="48" fill="#FFB5D8" text-anchor="middle" font-weight="bold">SQL</text>
+
+  <!-- Title -->
+  <text x="400" y="360" font-family="Arial, sans-serif" font-size="36" fill="#5A5A5A" text-anchor="middle" font-weight="600">Property Management Database</text>
+
+  <!-- Subtitle -->
+  <text x="400" y="400" font-family="Arial, sans-serif" font-size="24" fill="#808080" text-anchor="middle">MySQL + Complex Queries + Triggers</text>
+
+  <!-- Features -->
+  <text x="400" y="460" font-family="Arial, sans-serif" font-size="18" fill="#808080" text-anchor="middle">📊 17+ Queries  |  🔗 Joins  |  ⚡ Automated Triggers</text>
+
+  <!-- Bottom decoration -->
+  <rect x="0" y="500" width="800" height="100" fill="#FFB5D8" opacity="0.3"/>
+</svg>

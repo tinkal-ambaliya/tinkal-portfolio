@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#FFF8F0"/>
+
+  <!-- Excel Grid -->
+  <g opacity="0.6">
+    <line x1="250" y1="150" x2="550" y2="150" stroke="#D8B5FF" stroke-width="3"/>
+    <line x1="250" y1="200" x2="550" y2="200" stroke="#D8B5FF" stroke-width="3"/>
+    <line x1="250" y1="250" x2="550" y2="250" stroke="#D8B5FF" stroke-width="3"/>
+    <line x1="250" y1="300" x2="550" y2="300" stroke="#D8B5FF" stroke-width="3"/>
+
+    <line x1="250" y1="150" x2="250" y2="300" stroke="#D8B5FF" stroke-width="3"/>
+    <line x1="350" y1="150" x2="350" y2="300" stroke="#D8B5FF" stroke-width="3"/>
+    <line x1="450" y1="150" x2="450" y2="300" stroke="#D8B5FF" stroke-width="3"/>
+    <line x1="550" y1="150" x2="550" y2="300" stroke="#D8B5FF" stroke-width="3"/>
+  </g>
+
+  <!-- Chart -->
+  <rect x="260" y="220" width="30" height="70" fill="#FFB5D8" opacity="0.8"/>
+  <rect x="310" y="180" width="30" height="110" fill="#B5D8FF" opacity="0.8"/>
+  <rect x="360" y="200" width="30" height="90" fill="#D8B5FF" opacity="0.8"/>
+  <rect x="410" y="160" width="30" height="130" fill="#FFB5D8" opacity="0.8"/>
+  <rect x="460" y="190" width="30" height="100" fill="#B5D8FF" opacity="0.8"/>
+
+  <!-- Title -->
+  <text x="400" y="370" font-family="Arial, sans-serif" font-size="36" fill="#5A5A5A" text-anchor="middle" font-weight="600">Student Management System</text>
+
+  <!-- Subtitle -->
+  <text x="400" y="410" font-family="Arial, sans-serif" font-size="24" fill="#808080" text-anchor="middle">Excel Analytics + Automation</text>
+
+  <!-- Features -->
+  <text x="400" y="470" font-family="Arial, sans-serif" font-size="18" fill="#808080" text-anchor="middle">📈 Data Analysis  |  ⚙️ Process Automation  |  📊 20% Efficiency Gain</text>
+
+  <!-- Bottom decoration -->
+  <rect x="0" y="500" width="800" height="100" fill="#D8B5FF" opacity="0.3"/>
+</svg>
