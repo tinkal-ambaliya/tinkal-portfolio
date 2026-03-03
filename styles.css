@@ -311,8 +311,9 @@ section {
 }
 
 .skill-card p {
-    color: var(--text-light);
+    color: #3a3a3a;
     font-size: 0.95rem;
+    font-weight: 500;
 }
 
 /* Projects Section */
