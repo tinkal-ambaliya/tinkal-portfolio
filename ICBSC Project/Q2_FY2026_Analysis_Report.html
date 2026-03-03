@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Y3Q2 Post-Mortem Analysis -- Hornet Inc.</title>
+<style>
+  :root {
+    --bg: #faf9f6; --ink: #1a1a1a; --ink-light: #6b7280;
+    --green: #16a34a; --red: #dc2626; --amber: #d97706; --blue: #2563eb;
+    --card-bg: #ffffff; --border: #e5e7eb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+  .header { text-align: center; margin-bottom: 48px; border-bottom: 3px solid var(--ink); padding-bottom: 24px; }
+  .header h1 { font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+  .header .sub { font-size: 15px; color: var(--ink-light); margin-top: 8px; }
+  .header .verdict { font-size: 20px; font-weight: 700; margin-top: 16px; padding: 12px 24px; display: inline-block; border-radius: 6px; }
+  .verdict-mixed { background: #fef3c7; color: #92400e; border: 2px solid #f59e0b; }
+
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 22px; font-weight: 700; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+  .section-num { color: var(--blue); margin-right: 8px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th { background: #1e293b; color: #f1f5f9; padding: 10px 12px; text-align: right; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  th:first-child { text-align: left; }
+  td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+  td:first-child { text-align: left; font-weight: 500; }
+  .highlight { background: #fef3c7; font-weight: 600; }
+  .us-row { background: #eff6ff; font-weight: 600; }
+  .good { color: var(--green); font-weight: 600; }
+  .bad { color: var(--red); font-weight: 600; }
+  .neutral { color: var(--amber); font-weight: 600; }
+
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 16px 0; }
+  .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; border-left: 4px solid var(--blue); }
+  .card-label { font-size: 12px; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.5px; }
+  .card-value { font-size: 28px; font-weight: 800; margin: 4px 0; }
+  .card-delta { font-size: 13px; font-weight: 600; }
+  .card.good { border-left-color: var(--green); }
+  .card.bad { border-left-color: var(--red); }
+  .card.warn { border-left-color: var(--amber); }
+
+  .insight { padding: 16px 20px; margin: 16px 0; border-radius: 6px; border-left: 4px solid; }
+  .insight-good { background: #f0fdf4; border-color: var(--green); }
+  .insight-bad { background: #fef2f2; border-color: var(--red); }
+  .insight-warn { background: #fffbeb; border-color: var(--amber); }
+  .insight-info { background: #eff6ff; border-color: var(--blue); }
+  .insight-title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+
+  .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 16px 0; }
+  @media (max-width: 768px) { .comparison-grid { grid-template-columns: 1fr; } }
+
+  .accuracy-bar { height: 24px; background: #e5e7eb; border-radius: 12px; overflow: hidden; margin: 4px 0; }
+  .accuracy-fill { height: 100%; border-radius: 12px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; font-size: 11px; font-weight: 700; color: white; }
+
+  .flow-table td { font-family: 'Courier New', monospace; }
+  .flow-indent { padding-left: 24px !important; }
+
+  .footer { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--ink-light); text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Y3Q2 Post-Mortem Analysis</h1>
+  <div class="sub">Hornet Inc. (Company 2) -- World 1 -- Quarter ended Y3Q2</div>
+  <div class="verdict verdict-mixed">VERDICT: Solid Recovery Quarter -- Financial Moves Were Sound, Expansion Decision Is Overdue</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 1: EXECUTIVE SCORECARD -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">01</span> Executive Scorecard</h2>
+
+  <div class="card-grid">
+    <div class="card good">
+      <div class="card-label">Net Income</div>
+      <div class="card-value">$261K</div>
+      <div class="card-delta good">+$13K vs Q1 ($248K)</div>
+    </div>
+    <div class="card good">
+      <div class="card-label">Revenue</div>
+      <div class="card-value">$3,652K</div>
+      <div class="card-delta good">+$604K vs Q1 (+20%)</div>
+    </div>
+    <div class="card warn">
+      <div class="card-label">Market Share</div>
+      <div class="card-value">18.7%</div>
+      <div class="card-delta neutral">+1.0pp vs Q1 (17.7%)</div>
+    </div>
+    <div class="card good">
+      <div class="card-label">Units Sold</div>
+      <div class="card-value">346K</div>
+      <div class="card-delta good">+67K vs Q1 (+24%)</div>
+    </div>
+    <div class="card bad">
+      <div class="card-label">Ending Cash</div>
+      <div class="card-value">$1,329K</div>
+      <div class="card-delta bad">-$1,377K vs start ($2,707K)</div>
+    </div>
+    <div class="card warn">
+      <div class="card-label">Industry Rank (Profit)</div>
+      <div class="card-value">#3</div>
+      <div class="card-delta bad">Down from #1 in Q1</div>
+    </div>
+  </div>
+
+  <div class="insight insight-warn">
+    <div class="insight-title">The Big Picture</div>
+    You improved from Q1. Revenue up 20%, units up 24%, share up 1pp. But you dropped from #1 most profitable to #3.
+    Company 1 leapfrogged you with $362K net income. The team decided not to expand this quarter,
+    so idle capital was optimized through bond refinancing ($500K callback at ~7.5%, reissuable at 4.80%) and CDs ($2,200K at 3.24%).
+    These were sound financial moves given that no expansion was planned. However, the strategic gap is widening --
+    Companies 3 & 4 are investing that same level of capital into Nystok plants that will transform their cost structures.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 2: YOUR DECISIONS -- WHAT YOU ENTERED -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">02</span> Your Decisions vs Results</h2>
+
+  <table>
+    <thead>
+      <tr><th>Decision</th><th>Q1 (Actual)</th><th>Q2 (Entered)</th><th>Change</th><th>Impact</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Price (Merica)</td><td>$10.50</td><td>$10.20</td>
+        <td class="neutral">-$0.30 (-2.9%)</td>
+        <td class="good">Gained ~1pp share</td>
+      </tr>
+      <tr>
+        <td>Price (Nystok)</td><td>Dn 79</td><td>Dn 75</td>
+        <td class="neutral">-Dn 4 (-5.1%)</td>
+        <td class="good">Nystok share: 19% (up from 18%)</td>
+      </tr>
+      <tr>
+        <td>Advertising (Merica total)</td><td>$137K</td><td>$168K</td>
+        <td class="good">+$31K (+23%)</td>
+        <td class="good">Helped offset competitors</td>
+      </tr>
+      <tr>
+        <td>Advertising (Nystok)</td><td>Dn 116K</td><td>Dn 110K</td>
+        <td class="bad">-Dn 6K (-5%)</td>
+        <td class="neutral">Flat -- could have gained more</td>
+      </tr>
+      <tr>
+        <td>Commission</td><td>20%</td><td>22%</td>
+        <td class="good">+2pp</td>
+        <td class="neutral">Small step toward 70/30 goal</td>
+      </tr>
+      <tr>
+        <td>Salespeople Hired</td><td>0</td><td>+2 (Area 2 + Nystok)</td>
+        <td class="good">Good</td>
+        <td class="good">1 in training each area</td>
+      </tr>
+      <tr>
+        <td>Production Hours</td><td>48 (OT)</td><td>40 (normal)</td>
+        <td class="good">Eliminated overtime</td>
+        <td class="bad">Unit cost ROSE to $5.41 (was $4.85)</td>
+      </tr>
+      <tr>
+        <td>Quality/Features (Area 2)</td><td>Q2/F2</td><td>Q3/F3</td>
+        <td class="good">Premium positioning</td>
+        <td class="bad">+20% production cost from Q3/F3</td>
+      </tr>
+      <tr>
+        <td>R&D</td><td>$90K</td><td>$90K</td>
+        <td>No change</td>
+        <td class="neutral">Steady</td>
+      </tr>
+      <tr>
+        <td>Training</td><td>$68K</td><td>$75K</td>
+        <td class="good">+$7K (+10%)</td>
+        <td class="good">Good -- never decrease per Tips</td>
+      </tr>
+      <tr>
+        <td>Bond Callback</td><td>--</td><td>$500K</td>
+        <td>New action</td>
+        <td class="bad">Used $525K cash, saves $6K/qtr</td>
+      </tr>
+      <tr>
+        <td>CDs</td><td>$1,200K</td><td>$2,200K</td>
+        <td class="bad">+$1,000K</td>
+        <td class="bad">Locked up cash for 3.24% annual return</td>
+      </tr>
+      <tr>
+        <td>Dividends</td><td>$0</td><td>$0</td>
+        <td>No change</td>
+        <td class="bad">Should have started ($50K)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 3: THE UNIT COST SURPRISE -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">03</span> The Unit Cost Surprise -- $5.41 vs Expected ~$4.30</h2>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">BIGGEST NEGATIVE SURPRISE: Unit cost jumped from $4.85 to $5.41 (+11.5%)</div>
+    You expected dropping overtime (48hrs to 40hrs) would LOWER unit cost. Instead it INCREASED by $0.56/unit. Here's why:
+  </div>
+
+  <table>
+    <thead><tr><th>Cost Component</th><th>Q1 (48hrs, Q2/F2)</th><th>Q2 (40hrs, Q3/F3)</th><th>Change</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Labor</td><td>~$2.88 (with OT)</td><td>$1,049K / 324K = $3.24</td><td class="bad">+$0.36</td>
+        <td>Q3/F3 adds +20% to labor (10% each). Offset OT savings.</td>
+      </tr>
+      <tr>
+        <td>Materials</td><td>~$1.23</td><td>$489K / 324K = $1.51</td><td class="bad">+$0.28</td>
+        <td>Q3/F3 adds +20% to materials</td>
+      </tr>
+      <tr>
+        <td>Maintenance</td><td>~$0.25</td><td>$80K / 324K = $0.25</td><td>Flat</td>
+        <td>Not affected by Q/F</td>
+      </tr>
+      <tr>
+        <td>Depreciation</td><td>$0.35</td><td>$133K / 324K = $0.41</td><td class="bad">+$0.06</td>
+        <td>Less units to spread fixed cost over</td>
+      </tr>
+      <tr style="font-weight:700; border-top: 2px solid #1e293b;">
+        <td>Total</td><td>$4.85</td><td>$5.41</td><td class="bad">+$0.56 (+11.5%)</td>
+        <td>Q3/F3 premium wiped out OT savings</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="insight insight-info">
+    <div class="insight-title">Manual Reference</div>
+    BPG Manual Ch.7: "For Quality 3 add 10%. For Features 3 add 10%." These compound: Q3/F3 = 1.10 x 1.10 = 1.21x (21% increase) to labor and materials.
+    Your overtime savings (~15% labor premium removed) were more than consumed by the +21% Q3/F3 cost uplift.
+    <strong>Net effect: you're paying $0.56 MORE per unit for a premium product.</strong>
+    This isn't necessarily bad IF you charge enough to cover it -- but at $10.20 you only gained $0.56 in cost, reducing gross margin.
+  </div>
+
+  <p style="margin-top: 12px;"><strong>Standard costs for NEXT quarter (from Report E):</strong> Labor $2.63 + Materials $1.42 = $4.05/unit base (Q2/F2).
+  At Q3/F3: $4.05 x 1.21 = $4.90/unit. This confirms the cost structure.</p>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 4: CASH FLOW ANALYSIS -- WHY $1,329K NOT $2,000K -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">04</span> Cash Flow -- Where Did the $700K Go?</h2>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">You expected ~$2,000K ending cash. Actual: $1,329K. The gap: $671K.</div>
+    Let me trace every dollar.
+  </div>
+
+  <table class="flow-table">
+    <thead><tr><th>Item</th><th>Amount ($K)</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr style="background:#f0fdf4;"><td colspan="3"><strong>OPERATING RECEIPTS: $3,356K</strong></td></tr>
+      <tr><td class="flow-indent">Accounts Collected</td><td>$3,341K</td><td>Q1 AR + 50% of Q2 Merica sales + 40% Nystok</td></tr>
+      <tr><td class="flow-indent">CD Interest</td><td>$15K</td><td>2.76% annual on $1,200K Q1 CDs = $8.3K (actual $15K includes accrual)</td></tr>
+      <tr><td class="flow-indent">Subsidiary Dividends</td><td>$49K</td><td>Nystok sub paid dividends to parent</td></tr>
+      <tr style="background:#fef2f2;"><td colspan="3"><strong>OPERATING EXPENDITURES: $3,233K</strong></td></tr>
+      <tr><td class="flow-indent">Interest Paid</td><td>-$38K</td><td>Bond interest (before callback -- paid on full $2,000K)</td></tr>
+      <tr><td class="flow-indent">Production Cost</td><td>-$1,643K</td><td>2/3 current + 1/3 prior quarter. THIS IS THE BIG ONE.</td></tr>
+      <tr><td class="flow-indent">Purchases from Affiliates</td><td>-$0K</td><td>(consolidated)</td></tr>
+      <tr><td class="flow-indent">Operating Expense</td><td>-$1,336K</td><td>2/3 current + 1/3 prior quarter operating costs</td></tr>
+      <tr><td class="flow-indent">Taxes Paid</td><td>-$216K</td><td>Q1's taxes paid this quarter (higher than expected)</td></tr>
+      <tr style="font-weight:700; background:#f8fafc;"><td>Net Operating Cash Flow</td><td>$123K</td><td class="neutral">Barely positive</td></tr>
+
+      <tr style="background:#eff6ff;"><td colspan="3"><strong>INVESTMENT: -$1,000K</strong></td></tr>
+      <tr><td class="flow-indent">CDs Matured</td><td>+$1,200K</td><td>Q1 CDs returned</td></tr>
+      <tr><td class="flow-indent">CDs Purchased</td><td>-$2,200K</td><td class="bad">$1,000K MORE than what matured</td></tr>
+
+      <tr style="background:#fef3c7;"><td colspan="3"><strong>FINANCING: -$500K</strong></td></tr>
+      <tr><td class="flow-indent">Bonds Repurchased</td><td>-$500K</td><td>Callback (no 5% premium shown separately)</td></tr>
+      <tr><td class="flow-indent">Nystok Dividends to Parent</td><td>-$291K (Dn)</td><td>Internal transfer, nets out consolidated</td></tr>
+
+      <tr style="font-weight:700; border-top: 3px solid #1e293b;">
+        <td>Beginning Cash</td><td>$2,706K</td><td></td>
+      </tr>
+      <tr style="font-weight:700;">
+        <td>Net Cash Flow</td><td class="bad">-$1,377K</td><td></td>
+      </tr>
+      <tr style="font-weight:700; font-size: 16px;">
+        <td>ENDING CASH</td><td class="bad">$1,329K</td><td></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="insight insight-warn">
+    <div class="insight-title">Why You're $671K Short of $2,000K Target</div>
+    <strong>1. Taxes were higher than expected: $216K</strong> (Q1 taxes of $170K Merica + taxes from Nystok sub)<br>
+    <strong>2. Production cost cash outflow: $1,643K</strong> -- This includes 1/3 of Q1's production cost PLUS 2/3 of Q2's. Your Q1 overtime production (376K units at $4.85 = $1,823K) created deferred payments flowing into Q2.<br>
+    <strong>3. Operating expenses: $1,336K</strong> -- Again includes Q1 deferred costs.<br>
+    <strong>4. Bond interest still charged on full $2,000K: $38K</strong> -- The callback happens DURING the quarter, so you pay interest on the full amount first.<br>
+    <br>
+    <strong>The lesson:</strong> BPG's cash flow timing rules (1/3 deferred) mean Q1's expensive overtime production ($1,823K) sent ~$608K of deferred costs into Q2. You budgeted based on Q2 costs alone and forgot about Q1's tail.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 5: COMPETITIVE ANALYSIS -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">05</span> Competitive Landscape -- Q1 vs Q2</h2>
+
+  <table>
+    <thead>
+      <tr><th>Company</th><th>Q1 Share</th><th>Q2 Share</th><th>Change</th><th>Q1 Profit</th><th>Q2 Profit</th><th>Change</th><th>Strategy</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Co. 1 (AttiPals)</strong></td><td>19.3%</td><td>18.9%</td><td class="bad">-0.4pp</td>
+        <td>$232K</td><td class="good">$362K</td><td class="good">+$130K</td>
+        <td>Held $10.00, conservative. Now #1 profit.</td>
+      </tr>
+      <tr class="us-row">
+        <td><strong>Co. 2 (US)</strong></td><td>17.7%</td><td>18.7%</td><td class="good">+1.0pp</td>
+        <td>$248K</td><td>$261K</td><td class="good">+$13K</td>
+        <td>Dropped price $0.30, increased ads. Modest recovery.</td>
+      </tr>
+      <tr>
+        <td><strong>Co. 3 (Gordon)</strong></td><td>20.6%</td><td>21.1%</td><td class="good">+0.5pp</td>
+        <td>$147K</td><td class="good">$272K</td><td class="good">+$125K</td>
+        <td>Dropped to $9.60-9.70. 6-line Nystok plant building.</td>
+      </tr>
+      <tr>
+        <td><strong>Co. 4 (SJSU)</strong></td><td>23.4%</td><td>23.1%</td><td class="bad">-0.3pp</td>
+        <td>$5K</td><td class="good">$107K</td><td class="good">+$102K</td>
+        <td>Still $9.00 but profit recovering. 8-line Nystok plant.</td>
+      </tr>
+      <tr>
+        <td><strong>Co. 5 (CSUN)</strong></td><td>18.9%</td><td>18.2%</td><td class="bad">-0.7pp</td>
+        <td>$149K</td><td>$173K</td><td class="good">+$24K</td>
+        <td>Dropped to $9.69-9.79. Added 2 new lines. Waking up.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">CRITICAL: Everyone Improved More Than You</div>
+    <table>
+      <thead><tr><th>Company</th><th>Profit Increase Q1-Q2</th><th>Your Gap</th></tr></thead>
+      <tbody>
+        <tr><td>Company 1</td><td class="good">+$130K (+56%)</td><td class="bad">They gained 10x more profit than you</td></tr>
+        <tr><td>Company 3</td><td class="good">+$125K (+85%)</td><td class="bad">Nearly doubled profit while building Nystok plant</td></tr>
+        <tr><td>Company 4</td><td class="good">+$102K (+2,040%)</td><td class="neutral">Recovering from near-death</td></tr>
+        <tr><td>Company 5</td><td class="good">+$24K (+16%)</td><td class="neutral">Modest but adding capacity</td></tr>
+        <tr class="us-row"><td>YOU</td><td>+$13K (+5%)</td><td class="bad">Smallest improvement of all 5 companies</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top: 24px;">Industry Pricing Trends</h3>
+  <table>
+    <thead><tr><th>Company</th><th>Q1 Price (M1)</th><th>Q2 Price (M1)</th><th>Change</th><th>Direction</th></tr></thead>
+    <tbody>
+      <tr><td>Co. 1</td><td>$10.00</td><td>$10.00</td><td>$0.00</td><td>Holding steady</td></tr>
+      <tr class="us-row"><td>Co. 2 (US)</td><td>$10.50</td><td>$10.20</td><td class="bad">-$0.30</td><td>Dropped toward market</td></tr>
+      <tr><td>Co. 3</td><td>$9.80</td><td>$9.70</td><td>-$0.10</td><td>Slightly more aggressive</td></tr>
+      <tr><td>Co. 4</td><td>$9.00</td><td>$9.00</td><td>$0.00</td><td>Holding rock bottom</td></tr>
+      <tr><td>Co. 5</td><td>$10.00</td><td>$9.79</td><td class="bad">-$0.21</td><td>Dropped -- joining price war</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight insight-warn">
+    <div class="insight-title">The Market is Converging Downward</div>
+    Average industry price: Q1 = $9.86, Q2 = $9.74. The trend is DOWN. You're still the highest at $10.20.
+    Company 5 abandoned their $10.00 hold and dropped. Company 1 is the only one holding at $10.00.
+    <strong>You're increasingly isolated at the premium end with no product differentiation to justify it</strong> --
+    everyone is still at Q2/F2 on the position map.
+  </div>
+
+  <h3 style="margin-top: 24px;">Expansion Race -- WHO'S BUILDING WHAT</h3>
+  <table>
+    <thead><tr><th>Company</th><th>Q1 Action</th><th>Q2 Status</th><th>Ready When</th><th>Impact</th></tr></thead>
+    <tbody>
+      <tr><td>Co. 1</td><td>Nothing</td><td>Nothing</td><td>--</td><td>Conservative like you</td></tr>
+      <tr class="us-row"><td>Co. 2 (US)</td><td>Nothing</td><td>Nothing</td><td>--</td><td class="bad">No expansion planned</td></tr>
+      <tr><td>Co. 3</td><td>Started 6-line Nystok</td><td>Under construction</td><td class="bad">Y3Q4</td><td>Massive capacity + cheap labor in 2 qtrs</td></tr>
+      <tr><td>Co. 4</td><td>Started 8-line Nystok</td><td>Under construction</td><td class="bad">Y3Q4</td><td>Biggest plant in the game in 2 qtrs</td></tr>
+      <tr><td>Co. 5</td><td>Nothing</td><td>Added 2 new lines (home plant)</td><td>Y3Q3</td><td>Extra 104K capacity next quarter</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">YOU ARE NOW THE ONLY COMPANY NOT INVESTING IN CAPACITY</div>
+    Company 1 was your "conservative buddy" in Q1. Now even Company 5 is adding 2 lines.
+    You are literally the only company in the industry with zero expansion activity.
+    In 2 quarters, Companies 3 & 4 will have Nystok plants producing at Dn 7.92 labor + Dn 6.40 materials = Dn 14.32/unit
+    (~$2.39 USD) vs your $5.41/unit. They'll produce at <strong>56% lower cost</strong>.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 6: MODEL ACCURACY -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">06</span> Model Prediction Accuracy</h2>
+
+  <p style="margin-bottom: 12px;">Comparing our calibrated model predictions (from bpg_engine_v2.py at $10.00 price) to actual results at $10.20 price:</p>
+
+  <table>
+    <thead><tr><th>Metric</th><th>Model Predicted (at $10.00)</th><th>Actual (at $10.20)</th><th>Error</th><th>Accuracy</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Market Share</td><td>19.5-19.7%</td><td>18.7%</td>
+        <td>~1.0pp over</td>
+        <td>
+          <div class="accuracy-bar"><div class="accuracy-fill" style="width:94%; background:var(--green);">94%</div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Total Units</td><td>~329K</td><td>346K</td>
+        <td>-17K under (5%)</td>
+        <td>
+          <div class="accuracy-bar"><div class="accuracy-fill" style="width:95%; background:var(--green);">95%</div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Revenue</td><td>~$3,290K</td><td>$3,652K</td>
+        <td>-$362K under (10%)</td>
+        <td>
+          <div class="accuracy-bar"><div class="accuracy-fill" style="width:90%; background:var(--green);">90%</div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Net Income</td><td>~$235K</td><td>$261K</td>
+        <td>-$26K under (10%)</td>
+        <td>
+          <div class="accuracy-bar"><div class="accuracy-fill" style="width:90%; background:var(--green);">90%</div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Unit Prod. Cost</td><td>~$4.30</td><td>$5.41</td>
+        <td class="bad">-$1.11 (26% miss)</td>
+        <td>
+          <div class="accuracy-bar"><div class="accuracy-fill" style="width:74%; background:var(--amber);">74%</div></div>
+        </td>
+      </tr>
+      <tr>
+        <td>Ending Inventory</td><td>~170K</td><td>164K</td>
+        <td>+6K (4%)</td>
+        <td>
+          <div class="accuracy-bar"><div class="accuracy-fill" style="width:96%; background:var(--green);">96%</div></div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card-grid">
+    <div class="card good">
+      <div class="card-label">Overall Accuracy</div>
+      <div class="card-value">~90%</div>
+      <div class="card-delta">Market-side predictions strong</div>
+    </div>
+    <div class="card bad">
+      <div class="card-label">Cost Prediction</div>
+      <div class="card-value">74%</div>
+      <div class="card-delta bad">Q3/F3 impact was not modeled</div>
+    </div>
+  </div>
+
+  <div class="insight insight-info">
+    <div class="insight-title">Model Accuracy Assessment</div>
+    <strong>Market-side predictions (share, units, revenue): 90-95% accurate.</strong> The model correctly predicted the Q2 seasonal uplift and price sensitivity.
+    Revenue was underestimated because the model was calibrated for $10.00 and you entered $10.20 --
+    higher price x similar volume = more revenue than predicted.<br><br>
+    <strong>Cost-side prediction: 74% accurate.</strong> The model did NOT properly account for the Q3/F3 quality/features cost multiplier.
+    This is a known gap -- the model needs to be updated with the actual Q3/F3 = 1.21x cost multiplier.
+    I will fix this in the calibrated model.<br><br>
+    <strong>Cash flow prediction: The biggest miss.</strong> The model didn't account for BPG's deferred payment timing rules
+    (1/3 of Q1's costs flowing into Q2). This needs to be added to the pro forma tool.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 7: WHAT WENT GOOD -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">07</span> What Went GOOD</h2>
+
+  <div class="insight insight-good">
+    <div class="insight-title">1. Market Share Recovery (+1.0pp)</div>
+    Dropping price to $10.20 and increasing advertising recaptured 1pp of market share (17.7% to 18.7%).
+    You sold 346K units vs 279K in Q1 -- a 24% increase. The seasonal Q2 boost helped,
+    but your pricing/marketing adjustments drove real improvement.
+  </div>
+
+  <div class="insight insight-good">
+    <div class="insight-title">2. Revenue Growth (+20%)</div>
+    $3,652K vs $3,048K. Despite a lower price ($10.20 vs $10.50), the volume increase more than compensated.
+    This proves that the market IS elastic -- volume gains from lower prices exceed the per-unit revenue loss.
+  </div>
+
+  <div class="insight insight-good">
+    <div class="insight-title">3. Eliminated Overtime -- Right Call</div>
+    Going from 48hrs to 40hrs was correct. You had 186K units of inventory to burn through.
+    Production output dropped from 376K to 324K, and inventory decreased from 186K to 164K.
+    You're working down the excess. Overtime would have been wasteful.
+  </div>
+
+  <div class="insight insight-good">
+    <div class="insight-title">4. Hired 2 Salespeople -- Good Long-term Move</div>
+    1 in Area 2 (Home), 1 in Nystok. Both in training now. They'll be fully productive next quarter.
+    This builds capacity for future growth, especially in Nystok where demand is about to surge.
+  </div>
+
+  <div class="insight insight-good">
+    <div class="insight-title">5. Increased Training to $75K -- Smart</div>
+    Training spending increased from $68K to $75K. The Tips say "never decrease training."
+    This pushes you toward the next savings level, which reduces future production costs by ~2%.
+  </div>
+
+  <div class="insight insight-good">
+    <div class="insight-title">6. Best Altman Z Score in Industry (2.18)</div>
+    Your financial health score is the highest -- better than every competitor including Company 1 (2.15).
+    Companies 3 (1.89) and 4 (1.92) are stretching themselves thin with expansion debt.
+    You have financial stability.
+  </div>
+
+  <div class="insight insight-good">
+    <div class="insight-title">7. Highest Interest Coverage (16.3x)</div>
+    You can cover your debt obligations 16.3 times over. This is the best in the industry.
+    Company 4 is at 7.4x (dangerous). This gives you flexibility to take on debt later if needed.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 8: WHAT WENT WRONG -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">08</span> What Went WRONG</h2>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">1. DROPPED FROM #1 TO #3 IN PROFITABILITY</div>
+    Q1: You were the MOST profitable company ($248K). Q2: You're #3 behind Company 1 ($362K) and Company 3 ($272K).
+    Your profit grew only $13K (+5%) while the industry average grew $96K (+73%).
+    <strong>This is the worst relative performance of any company.</strong>
+  </div>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">2. Unit Cost Explosion ($4.85 to $5.41)</div>
+    Choosing Q3/F3 positioning for Area 2 (home area where production happens) increased your
+    production cost by 21%. This ate into margins and is the primary reason profit barely grew
+    despite 20% revenue increase. <strong>Revenue up $604K but COGS up $405K.</strong> You captured barely $200K of that $604K as gross profit.
+  </div>
+
+  <div class="insight insight-warn">
+    <div class="insight-title">3. Bond Callback + CDs -- Sound Financial Moves, But Expansion Was the Better Use of Capital</div>
+    Since no expansion was planned for Q2, idle capital was put to work:<br><br>
+    <strong>What was done:</strong><br>
+    - Bond callback at ~7.5% coupon, reissuable later at 4.80% = textbook refinancing (saves ~$6.4K/quarter ongoing)<br>
+    - $2,200K in CDs at 3.24% = $17.8K/quarter vs 0% sitting in cash<br>
+    - Combined financial income: ~$24K/quarter from idle cash<br><br>
+    <strong>These were the right financial moves given that expansion wasn't happening.</strong>
+    With no plant to fund, parking cash in CDs and refinancing debt was the responsible move.
+    However, the opportunity cost is real: that same capital deployed into a Nystok plant would return 20%+ vs 3.24% in CDs.
+    <strong>The team must align on expansion for Q3 -- the data now proves the case.</strong>
+  </div>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">4. Still Zero Expansion -- Only Company Not Investing</div>
+    As of Q2, expansion status: Co.3 = 6-line Nystok plant. Co.4 = 8-line Nystok plant. Co.5 = 2 new home lines. Co.1 = nothing yet but highest cash reserves ($4,571K) to move quickly.
+    <strong>Hornet Inc. is the ONLY company with zero capacity investment.</strong><br><br>
+    The competitive analysis (Section 5 of this report) makes it clear: expansion is no longer optional.
+    The window is closing -- if construction starts in Q3, the plant is ready by Y4Q2.
+    Every quarter of delay extends the cost disadvantage.
+  </div>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">5. Sales Office Orders Were Too Low</div>
+    Your orders: 85/87/85/40 = 297K total. Customer orders: 95/100/94/53 = 342K.
+    <strong>You could have sold 342K units but only authorized 297K!</strong>
+    You left 45K units of demand on the table. At $10.20/unit that's ~$459K in lost revenue.
+    You actually sold 346K (some excess inventory filled demand), but the order caps constrained you.
+  </div>
+
+  <div class="insight insight-bad">
+    <div class="insight-title">6. No Dividends Started</div>
+    Every winning team in the Tips for Success started dividends by Year 3.
+    You've now gone 2 quarters without paying a single dollar. The judges will notice.
+    <strong>No company has started dividends yet, but you should be first -- it's a differentiation signal to judges.</strong>
+  </div>
+
+  <div class="insight insight-warn">
+    <div class="insight-title">7. Price Drop to $10.20 -- Necessary but Looks Inconsistent</div>
+    Q1: $10.50. Q2: $10.20. This is exactly the "inconsistency" the Tips warned about.
+    If judges ask "why did you raise then immediately lower?", the answer sounds reactive.
+    The $0.30 drop gained you only 1pp of share -- Company 5 dropped $0.21 and LOST 0.7pp.
+    Price isn't the only lever, and your drop wasn't decisive enough to make a real difference.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 9: FINANCIAL DEEP DIVE -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">09</span> Income Statement Deep Dive</h2>
+
+  <table>
+    <thead><tr><th>Line Item</th><th>Q1</th><th>Q2</th><th>Change</th><th>Analysis</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Revenue</strong></td><td>$3,048K</td><td>$3,652K</td><td class="good">+$604K (+20%)</td><td>Volume + seasonal drove growth</td></tr>
+      <tr><td>COGS</td><td>$1,335K</td><td>$1,740K</td><td class="bad">+$405K (+30%)</td><td>Q3/F3 cost + higher volume</td></tr>
+      <tr><td>VAT</td><td>$71K</td><td>$66K</td><td class="good">-$5K</td><td>Slightly less Nystok revenue share</td></tr>
+      <tr><td><strong>Gross Profit</strong></td><td>$1,713K</td><td>$1,846K</td><td class="good">+$133K</td><td>56.2% margin down to 50.5%</td></tr>
+      <tr><td>Advertising</td><td>$156K</td><td>$186K</td><td class="bad">+$30K</td><td>Intentional increase</td></tr>
+      <tr><td>Sales Salaries</td><td>$120K</td><td>$126K</td><td>+$6K</td><td>2 new hires + slight increase</td></tr>
+      <tr><td>Sales Commissions</td><td>$56K</td><td>$69K</td><td>+$13K</td><td>Higher commission % + more revenue</td></tr>
+      <tr><td>General Selling</td><td>$400K</td><td>$418K</td><td>+$18K</td><td>More units sold = higher variable</td></tr>
+      <tr><td>Transportation</td><td>$155K</td><td>$174K</td><td>+$19K</td><td>More units shipped</td></tr>
+      <tr><td>R&D</td><td>$90K</td><td>$90K</td><td>$0</td><td>Unchanged</td></tr>
+      <tr><td>Training</td><td>$68K</td><td>$91K</td><td>+$23K</td><td>$75K entered + $10K new hire + Dn 37K Nystok hire</td></tr>
+      <tr><td>Storage</td><td>$19K</td><td>$46K</td><td class="bad">+$27K</td><td>Higher average inventory carried</td></tr>
+      <tr><td><strong>Operating Profit</strong></td><td>$447K</td><td>$458K</td><td class="good">+$11K</td><td>Barely grew despite 20% revenue increase</td></tr>
+      <tr><td>Bond Interest</td><td>$38K</td><td>$38K</td><td>$0</td><td>Full quarter interest before callback</td></tr>
+      <tr><td>CD Interest</td><td>$8K</td><td>$15K</td><td>+$7K</td><td>Higher CD balance</td></tr>
+      <tr><td>Tax</td><td>$170K</td><td>$170K</td><td>$0</td><td>Nearly identical</td></tr>
+      <tr style="font-weight:700; border-top:2px solid #1e293b;">
+        <td><strong>NET INCOME</strong></td><td>$248K</td><td>$261K</td>
+        <td class="good">+$13K</td><td class="bad">Only +5% despite 20% revenue growth</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="insight insight-warn">
+    <div class="insight-title">The Margin Squeeze Problem</div>
+    Revenue grew $604K but net income grew only $13K. Where did the $591K go?<br>
+    - COGS absorbed $405K (Q3/F3 premium + volume)<br>
+    - Operating expenses grew $121K (advertising, selling, storage, training)<br>
+    - Tax absorbed $0K more (coincidence -- similar pretax)<br>
+    - Interest net improved $7K<br>
+    <strong>Bottom line: The Q3/F3 cost increase ($0.56/unit x 346K units = ~$194K) was the single biggest profit drag.</strong>
+    If you had stayed at Q2/F2, your net income would have been approximately $261K + $194K x 0.61 (after tax) = ~$379K --
+    beating Company 1 for #1 profitability.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 10: BALANCE SHEET SNAPSHOT -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">10</span> Balance Sheet Health</h2>
+
+  <table>
+    <thead><tr><th>Item</th><th>Q1 End</th><th>Q2 End</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td>Cash</td><td>$2,707K</td><td>$1,329K</td><td class="bad">-$1,378K</td></tr>
+      <tr><td>CDs</td><td>$1,200K</td><td>$2,200K</td><td>+$1,000K</td></tr>
+      <tr><td>Total Liquidity</td><td>$3,907K</td><td>$3,529K</td><td class="bad">-$378K</td></tr>
+      <tr><td>Accounts Receivable</td><td>$1,524K</td><td>$1,892K</td><td class="good">+$368K (higher sales)</td></tr>
+      <tr><td>Inventory</td><td>$902K</td><td>$995K</td><td class="neutral">+$93K (higher unit cost)</td></tr>
+      <tr><td>Total Assets</td><td>$15,070K</td><td>$14,867K</td><td class="bad">-$203K</td></tr>
+      <tr><td>Bonds</td><td>$2,000K</td><td>$1,500K</td><td class="good">-$500K (callback)</td></tr>
+      <tr><td>Total Equity</td><td>$11,881K</td><td>$12,143K</td><td class="good">+$262K (retained earnings)</td></tr>
+      <tr style="font-weight:700;">
+        <td>Current Ratio</td><td>5.4x</td><td>5.2x</td><td class="neutral">-0.2x (still strong)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 11: HONEST VERDICT -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">11</span> Brutally Honest Verdict</h2>
+
+  <div style="background:#1e293b; color:#f1f5f9; padding:32px; border-radius:8px; margin:16px 0;">
+    <h3 style="margin-bottom:16px; font-size:20px;">The Good News</h3>
+    <p>You're financially solid. Best Altman Z, best interest coverage, reasonable profit. You recovered 1pp of market share. You're not in danger of bankruptcy. Your balance sheet is clean.</p>
+
+    <h3 style="margin: 24px 0 16px; font-size:20px;">The Bad News</h3>
+    <p>You had the <strong>smallest profit improvement of any company in the industry</strong>. You went from #1 profitability to #3. You're the only company not investing in future capacity. Your Q3/F3 quality/features decision ate your margins without delivering meaningful differentiation (everyone is still clustered at Q2/F2 on the position map -- your Q3/F3 only applies to your home area production, NOT to how the market sees your product in Areas 1, 3, and Nystok which are still Q2/F2).</p>
+
+    <h3 style="margin: 24px 0 16px; font-size:20px;">The Scary Part</h3>
+    <p>In <strong>2 quarters</strong>, Companies 3 and 4 will have Nystok plants online. Company 5 will have 2 extra lines. Your $5.41 unit cost will be competing against their ~$2.50 Nystok cost. They'll be able to undercut you by $2+/unit AND be profitable. Your "differentiation" at Q2/F2 positioning (same as everyone else) with $10.20 pricing will become untenable.</p>
+    <p style="margin-top:16px; font-weight:700; font-size:18px; color:#fbbf24;">The window to start a Nystok plant is CLOSING. If you start in Y3Q3, it's ready Y4Q2. If you wait until Y3Q4, it's Y4Q3. Every quarter you delay is a quarter of competitive disadvantage.</p>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 12: KEY NUMBERS FOR MODEL UPDATE -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">12</span> Key Data for Model Calibration Update</h2>
+
+  <table>
+    <thead><tr><th>Parameter</th><th>Q1 Value</th><th>Q2 Actual</th><th>Model Needs Update?</th></tr></thead>
+    <tbody>
+      <tr><td>Total Industry Sales</td><td>1,574K</td><td>1,850K</td><td class="good">Yes -- Q2 seasonal uplift = 17.5%</td></tr>
+      <tr><td>Market Share at $10.20</td><td>17.7% at $10.50</td><td>18.7% at $10.20</td><td>Yes -- price elasticity confirmed ~2.0</td></tr>
+      <tr><td>Unit Production Cost (Q3/F3)</td><td>$4.85 (Q2/F2, 48hr)</td><td>$5.41 (Q3/F3, 40hr)</td><td class="bad">Yes -- add Q/F cost multiplier</td></tr>
+      <tr><td>Standard costs next qtr</td><td>--</td><td>Labor $2.63, Material $1.42</td><td>Yes -- update base costs</td></tr>
+      <tr><td>Savings Level</td><td>--</td><td>Level 1 (shown in Report E)</td><td class="bad">Yes -- lower than assumed (was 3)</td></tr>
+      <tr><td>Seasonal factor Q1-Q2</td><td>0.92</td><td>1.01 (1,574 to 1,850 = +17.5%)</td><td>Yes -- actual ratio = 1.175</td></tr>
+      <tr><td>Exchange rate</td><td>5.97</td><td>5.99</td><td>Minor update</td></tr>
+      <tr><td>CD Rate</td><td>2.76%</td><td>3.24%</td><td>Rising -- update</td></tr>
+      <tr><td>Bond Rate (CR2)</td><td>4.90%</td><td>4.80%</td><td>Slightly lower -- update</td></tr>
+      <tr><td>Nystok GDP (Q11 forecast)</td><td>106.49</td><td>106.65</td><td>Confirmed: Nystok boom coming</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight insight-warn">
+    <div class="insight-title">CRITICAL: Savings Level = 1 (Not 3 as assumed)</div>
+    Report E shows "Savings Level 1." The model assumed Level 3 based on Y1-Y2 cumulative training.
+    This means training investment has less impact than modeled.
+    At Level 1, you need ~$200K cumulative training to reach Level 2 (which reduces costs ~2%).
+    You've spent $68K + $75K = $143K so far. <strong>You're close to Level 2 but not there yet.</strong>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SECTION 13: THE CASE FOR EXPANSION -->
+<!-- ============================================================ -->
+<div class="section">
+  <h2 class="section-title"><span class="section-num">13</span> The Case for Expansion: Why We Must Act in Q3</h2>
+
+  <div style="background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%); color:#f1f5f9; padding:32px; border-radius:8px; margin:16px 0;">
+    <h3 style="color:#60a5fa; margin-bottom: 20px; font-size: 20px;">STRATEGIC INVESTMENT MEMO -- HORNET INC.</h3>
+    <h3 style="margin-bottom: 16px;">RE: Nystok Plant Investment Required Y3Q3</h3>
+
+    <div style="background:rgba(255,255,255,0.08); padding:16px; border-radius:6px; margin:16px 0;">
+      <h4 style="color:#fbbf24; margin-bottom:8px;">THE COMPETITIVE REALITY</h4>
+      <p>We are now the <strong>only company in the industry with zero capacity investment</strong>. The Q2 industry report confirms:</p>
+      <ul style="margin:8px 0 0 20px;">
+        <li>Company 3: 6-line Nystok plant under construction (ready Y3Q4) + $3M in bonds to fund it</li>
+        <li>Company 4: 8-line Nystok plant under construction (ready Y3Q4) -- the largest in the game</li>
+        <li>Company 5: Added 2 new production lines (online Y3Q3)</li>
+        <li>Company 1: $4,571K liquidity -- positioned to move at any time</li>
+        <li><strong>Us: Nothing. Zero investment. Standing still.</strong></li>
+      </ul>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.08); padding:16px; border-radius:6px; margin:16px 0;">
+      <h4 style="color:#f87171; margin-bottom:8px;">THE COST CRISIS COMING IN 2 QUARTERS</h4>
+      <table style="color:#f1f5f9; font-size:13px;">
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:6px 12px;">Our current unit cost (Q3/F3, Merica)</td>
+          <td style="padding:6px 12px; font-weight:700;">$5.41</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:6px 12px;">Nystok unit cost (Co.3 & 4, Y3Q4 onward)</td>
+          <td style="padding:6px 12px; font-weight:700; color:#f87171;">~$2.50</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:6px 12px;">Their cost advantage per unit</td>
+          <td style="padding:6px 12px; font-weight:700; color:#f87171;">$2.91 (54% cheaper)</td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8; padding:6px 12px;">On 200K units/year from Nystok plant</td>
+          <td style="padding:6px 12px; font-weight:700; color:#f87171;">$582K/year cost advantage over us</td>
+        </tr>
+      </table>
+      <p style="margin-top:12px;">They will be able to price at $8.00 and still match our margins at $10.20. Our differentiation strategy becomes meaningless without a cost structure to support it.</p>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.08); padding:16px; border-radius:6px; margin:16px 0;">
+      <h4 style="color:#fbbf24; margin-bottom:8px;">THE NYSTOK GDP EXPLOSION</h4>
+      <p>The ACCUDAT GDP forecast confirms Nystok is about to boom:</p>
+      <table style="color:#f1f5f9; font-size:13px;">
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Y3Q2 (now)</td><td style="padding:4px 12px;">102.56</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Y3Q3</td><td style="padding:4px 12px; color:#22c55e;">106.65 (+4.0%)</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Y3Q4</td><td style="padding:4px 12px; color:#22c55e;">111.41 (+4.5%)</td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8; padding:4px 12px;">Y4Q2</td><td style="padding:4px 12px; color:#22c55e;">114.41 (+2.7%)</td>
+        </tr>
+      </table>
+      <p style="margin-top:8px;">Nystok GDP grows 11.5% over the next 4 quarters vs Merica's 3.5%. The growth market is Nystok. Companies 3 & 4 will capture it. We won't.</p>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.08); padding:16px; border-radius:6px; margin:16px 0;">
+      <h4 style="color:#22c55e; margin-bottom:8px;">THE PROPOSAL: 4-LINE NYSTOK PLANT</h4>
+      <table style="color:#f1f5f9; font-size:13px;">
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Plant construction (3 quarters)</td>
+          <td style="padding:4px 12px;">~$633K/quarter = $1,900K total</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Equipment (4 lines, in Q3 of construction)</td>
+          <td style="padding:4px 12px;">$2,400K</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Total investment</td>
+          <td style="padding:4px 12px; font-weight:700;">~$4,300K over 3 quarters</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Funding: Issue $1-1.5M bonds at 4.80%</td>
+          <td style="padding:4px 12px;">Cost: $12-18K/quarter interest</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Funding: Reduce CDs from $2,200K to $1,000K</td>
+          <td style="padding:4px 12px;">Frees up $1,200K (lose $10K/qtr CD interest)</td>
+        </tr>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.2);">
+          <td style="color:#94a3b8; padding:4px 12px;">Plant operational</td>
+          <td style="padding:4px 12px; font-weight:700; color:#22c55e;">Y4Q2</td>
+        </tr>
+        <tr>
+          <td style="color:#94a3b8; padding:4px 12px;">Annual cost savings (est.)</td>
+          <td style="padding:4px 12px; font-weight:700; color:#22c55e;">$400K-600K/year</td>
+        </tr>
+      </table>
+      <p style="margin-top:12px;"><strong>ROI: The plant pays for itself in under 2 years.</strong> Bond interest costs ~$60K/year. Cost savings are $400K+/year. Net benefit: $340K+/year.</p>
+    </div>
+
+    <div style="background:rgba(239,68,68,0.2); padding:16px; border-radius:6px; margin:16px 0; border: 1px solid rgba(239,68,68,0.4);">
+      <h4 style="color:#fca5a5; margin-bottom:8px;">WHAT HAPPENS IF WE DO NOTHING</h4>
+      <ul style="margin-left:20px;">
+        <li>Y3Q4: Companies 3 & 4 plants come online. Their costs drop 54%. They gain pricing power.</li>
+        <li>Y4Q1-Q2: Our market share drops below 16% as we can't compete on price.</li>
+        <li>Y4Q3-Q4: We're stuck with the highest cost structure and lowest market share.</li>
+        <li>Y5 onward: We become a marginal player with no competitive advantage.</li>
+        <li><strong>The judges will ask: "Why didn't you invest when you had the cash and the data?"</strong></li>
+      </ul>
+    </div>
+
+    <p style="font-size:16px; font-weight:700; margin-top:20px; color:#fbbf24;">
+      RECOMMENDATION: Approve 4-line Nystok plant construction in Y3Q3. Fund with bond issue + CD reduction. Maintain $1.5M+ cash buffer throughout construction. This is the single most important strategic decision of the competition.
+    </p>
+  </div>
+</div>
+
+<div class="footer">
+  <p>Analysis prepared from Y3Q2 Reports A, B, C, D, E, F1, F2 | Hornet Inc. | Confidential</p>
+  <p style="margin-top:4px;">Generated by ICBSC Predictive Model -- Post-Quarter Analysis Module</p>
+</div>
+
+</div>
+</body>
+</html>
